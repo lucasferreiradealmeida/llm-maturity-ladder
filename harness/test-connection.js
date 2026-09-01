@@ -112,7 +112,37 @@ async function testGpt() {
   console.log(`[gpt] OK -> resposta: "${text.trim()}"`);
 }
 
-const TESTS = { gemini: testGemini, claude: testClaude, gpt: testGpt };
+async function testGroq() {
+  const key = process.env.GROQ_API_KEY;
+  const model = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
+  console.log(`\n[groq] chave carregada: ${maskKey(key)}`);
+  console.log(`[groq] modelo: ${model}`);
+  if (!key) throw new Error("GROQ_API_KEY nao definida no .env");
+
+  const res = await withTimeout(
+    fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 500,
+        reasoning_effort: "low",
+        messages: [{ role: "user", content: "diga oi" }],
+      }),
+    }),
+    TIMEOUT_MS,
+    "groq"
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${JSON.stringify(data)}`);
+  const text = data.choices?.[0]?.message?.content ?? "(sem texto)";
+  console.log(`[groq] OK -> resposta: "${text.trim()}"`);
+}
+
+const TESTS = { gemini: testGemini, claude: testClaude, gpt: testGpt, groq: testGroq };
 
 async function main() {
   const target = process.argv[2];

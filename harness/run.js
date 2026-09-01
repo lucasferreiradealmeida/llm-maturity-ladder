@@ -6,6 +6,8 @@
 // Uso:
 //   node run.js                          -> roda tudo, 1 tentativa por combinacao
 //   node run.js --attempts=3             -> 3 tentativas por combinacao (recomendado p/ medir variancia)
+//   node run.js --attempts=3 --start-attempt=3
+//                                         -> roda SO a tentativa 3 (nao repete 1 e 2 ja existentes)
 //   node run.js --levels=0,1,2           -> roda so os niveis 0,1,2
 //   node run.js --providers=claude,gpt   -> roda so os provedores informados
 
@@ -16,6 +18,7 @@ import { LEVELS, buildPrompt } from "./prompts.js";
 import * as claude from "./providers/anthropic.js";
 import * as gpt from "./providers/openai.js";
 import * as gemini from "./providers/gemini.js";
+import * as groq from "./providers/groq.js";
 
 // ---- configuracao dos modelos testados --------------------------------
 // Ajuste os model IDs para a versao vigente no momento em que voce for
@@ -35,6 +38,10 @@ const PROVIDERS = {
     ...gemini,
     model: process.env.GEMINI_MODEL || "gemini-3.1-pro-preview",
   },
+  groq: {
+    ...groq,
+    model: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
+  },
 };
 
 const TEMPERATURE = Number(process.env.TEMPERATURE ?? 0.2);
@@ -48,6 +55,7 @@ const args = Object.fromEntries(
 );
 
 const attempts = Number(args.attempts ?? 1);
+const startAttempt = Number(args["start-attempt"] ?? 1);
 const selectedLevels = args.levels
   ? args.levels.split(",").map(Number)
   : LEVELS.map((l) => l.id);
@@ -133,7 +141,7 @@ async function main() {
   const levels = LEVELS.filter((l) => selectedLevels.includes(l.id));
 
   console.log(
-    `Rodando ${levels.length} nivel(is) x ${selectedProviders.length} provedor(es) x ${attempts} tentativa(s)`
+    `Rodando ${levels.length} nivel(is) x ${selectedProviders.length} provedor(es) x ${attempts - startAttempt + 1} tentativa(s) (de ${startAttempt} a ${attempts})`
   );
 
   for (const level of levels) {
@@ -150,7 +158,7 @@ async function main() {
       const providerDir = path.join(OUTPUT_DIR, levelDirName, providerKey);
       fs.mkdirSync(providerDir, { recursive: true });
 
-      for (let attempt = 1; attempt <= attempts; attempt++) {
+      for (let attempt = startAttempt; attempt <= attempts; attempt++) {
         const label = `[nivel ${level.id} | ${providerKey} | tentativa ${attempt}]`;
         console.log(`${label} chamando ${provider.model}...`);
 
