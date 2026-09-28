@@ -1,11 +1,12 @@
 <!--
 nivel: 1 - CRUD com persistencia em banco
 provider: gemini
-model: gemini-pro-latest
+model: gemini-3.1-pro-preview
+modelo_resolvido: gemini-3.1-pro-preview
 tentativa: 2
 temperature: 0.2
-timestamp: 2026-08-18T17:01:52.507Z
-metadata: {"model":"gemini-pro-latest","usage":{"promptTokenCount":235,"candidatesTokenCount":1961,"totalTokenCount":3673,"promptTokensDetails":[{"modality":"TEXT","tokenCount":235}],"thoughtsTokenCount":1477,"serviceTier":"standard"},"finish_reason":"STOP"}
+timestamp: 2026-09-28T18:32:20.449Z
+metadata: {"model":"gemini-3.1-pro-preview","modelVersion":"gemini-3.1-pro-preview","responseId":"tLK6ar_MJrnUz7IPl7fw8Q0","usage":{"promptTokenCount":235,"candidatesTokenCount":2344,"totalTokenCount":3931,"promptTokensDetails":[{"modality":"TEXT","tokenCount":235}],"thoughtsTokenCount":1352,"serviceTier":"standard"},"finish_reason":"STOP","parametros":{"maxOutputTokens":16000,"temperature":0.2,"thinkingConfig":{"thinkingBudget":2048}}}
 -->
 
 ## Prompt enviado
@@ -30,42 +31,28 @@ RESTRICOES:
 
 ## Resposta do modelo
 
-Aqui está a implementação completa do sistema solicitado. 
+Aqui está a solução completa para o sistema solicitado. 
 
-### Decisões de Design Assumidas:
-1. **Interface CLI:** Optei por usar argumentos de linha de comando (`process.argv`) em vez de um prompt interativo. Isso torna a ferramenta rápida para uso em scripts e automações.
-2. **Biblioteca de Banco de Dados:** Utilizei o `better-sqlite3`. Ele é síncrono, o que simplifica muito o código para scripts CLI, evitando a complexidade de callbacks ou Promises desnecessárias para esta escala de aplicação.
-3. **Identificador Único:** Para as operações de atualização e remoção, assumi o uso do `ID` gerado pelo banco de dados, pois é a forma mais segura de identificar um registro (já que nomes podem se repetir e e-mails podem ser alterados).
-4. **Formato de Data:** Assumi o formato `YYYY-MM-DD` (padrão ISO) para facilitar a ordenação e validação.
-
----
+Para manter a aplicação leve e aderir à restrição de não usar frameworks desnecessários, utilizei apenas o módulo nativo `readline` do Node.js para a interface de linha de comando e a biblioteca `sqlite3` para a comunicação com o banco de dados. O schema do banco de dados é criado automaticamente na primeira execução.
 
 ### Instruções de Execução
 
-**1. Pré-requisitos:**
-* Ter o [Node.js](https://nodejs.org/) instalado na sua máquina (versão 14 ou superior).
-
-**2. Instalação:**
-Crie uma pasta para o projeto, salve os arquivos abaixo dentro dela e, no terminal, execute:
-```bash
-npm install
-```
-
-**3. Como usar:**
-* **Adicionar usuário:**
-  `node index.js add "João Silva" "joao@email.com" "1990-05-20"`
-* **Listar usuários:**
-  `node index.js list`
-* **Atualizar usuário (requer o ID listado no comando anterior):**
-  `node index.js update 1 "João da Silva" "joao.silva@email.com" "1990-05-20"`
-* **Remover usuário:**
-  `node index.js remove 1`
+1. Certifique-se de ter o **Node.js** instalado em sua máquina (versão 14 ou superior recomendada).
+2. Crie um diretório para o projeto e salve os dois arquivos abaixo (`package.json` e `index.js`) dentro dele.
+3. Abra o terminal no diretório do projeto e instale a dependência do SQLite executando:
+   ```bash
+   npm install
+   ```
+4. Para iniciar a aplicação, execute:
+   ```bash
+   npm start
+   ```
 
 ---
 
-### Arquivos do Projeto
+### Arquivo: `package.json`
+Este arquivo gerencia as dependências e scripts do projeto.
 
-`package.json`
 ```json
 {
   "name": "cli-users-crud",
@@ -76,169 +63,244 @@ npm install
     "start": "node index.js"
   },
   "dependencies": {
-    "better-sqlite3": "^9.4.3"
+    "sqlite3": "^5.1.6"
   }
 }
 ```
 
-`db.js`
+---
+
+### Arquivo: `index.js`
+Este é o código-fonte principal da aplicação. Ele contém a inicialização do banco de dados, o schema, as validações e a lógica da interface de linha de comando.
+
 ```javascript
-const Database = require('better-sqlite3');
-const path = require('path');
+const sqlite3 = require('sqlite3').verbose();
+const readline = require('readline');
 
-// Conecta ao banco de dados (cria o arquivo se não existir)
-const dbPath = path.join(__dirname, 'database.sqlite');
-const db = new Database(dbPath);
+// ==========================================
+// CONFIGURAÇÃO DO BANCO DE DADOS E SCHEMA
+// ==========================================
+// Assumindo a decisão de usar um arquivo local para persistência.
+const db = new sqlite3.Database('./database.sqlite', (err) => {
+    if (err) {
+        console.error('Erro ao conectar ao banco de dados:', err.message);
+        process.exit(1);
+    }
+});
 
-// Script de criação do Schema
-// A restrição UNIQUE no email garante que não haverá duplicidade no nível do banco
-const initDb = () => {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      email TEXT UNIQUE NOT NULL,
-      birthdate TEXT NOT NULL
-    )
-  `);
+// Criação do Schema
+const initDB = () => {
+    return new Promise((resolve, reject) => {
+        const schema = `
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                birthdate TEXT NOT NULL
+            )
+        `;
+        db.run(schema, (err) => {
+            if (err) reject(err);
+            else resolve();
+        });
+    });
 };
 
-initDb();
+// ==========================================
+// UTILITÁRIOS E VALIDAÇÕES
+// ==========================================
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
 
-module.exports = db;
-```
+// Promisify do readline para usar async/await
+const askQuestion = (query) => {
+    return new Promise(resolve => rl.question(query, resolve));
+};
 
-`index.js`
-```javascript
-const db = require('./db');
-
-// Captura os argumentos passados na linha de comando
-const [,, command, ...args] = process.argv;
-
-// Funções de Validação
 const isValidEmail = (email) => {
-  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return regex.test(email);
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
 };
 
 const isValidDate = (date) => {
-  const regex = /^\d{4}-\d{2}-\d{2}$/;
-  return regex.test(date);
+    // Validação simples de formato YYYY-MM-DD
+    const regex = /^\d{4}-\d{2}-\d{2}$/;
+    return regex.test(date);
 };
 
-// Controladores (CRUD)
-const addUser = (name, email, birthdate) => {
-  if (!name || !email || !birthdate) {
-    return console.error('Erro: Para adicionar, informe <nome> <email> <data_nascimento YYYY-MM-DD>.');
-  }
-  if (!isValidEmail(email)) {
-    return console.error('Erro: O formato do e-mail é inválido.');
-  }
-  if (!isValidDate(birthdate)) {
-    return console.error('Erro: A data de nascimento deve estar no formato YYYY-MM-DD.');
-  }
+// Wrappers em Promise para operações do SQLite
+const runQuery = (query, params = []) => {
+    return new Promise((resolve, reject) => {
+        db.run(query, params, function (err) {
+            if (err) reject(err);
+            else resolve(this);
+        });
+    });
+};
 
-  try {
-    const stmt = db.prepare('INSERT INTO users (name, email, birthdate) VALUES (?, ?, ?)');
-    const info = stmt.run(name, email, birthdate);
-    console.log(`✅ Usuário cadastrado com sucesso! (ID: ${info.lastInsertRowid})`);
-  } catch (error) {
-    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-      console.error('Erro: Este e-mail já está cadastrado no sistema.');
-    } else {
-      console.error('Erro ao cadastrar usuário:', error.message);
+const getQuery = (query, params = []) => {
+    return new Promise((resolve, reject) => {
+        db.all(query, params, (err, rows) => {
+            if (err) reject(err);
+            else resolve(rows);
+        });
+    });
+};
+
+// ==========================================
+// OPERAÇÕES CRUD
+// ==========================================
+
+const createUser = async () => {
+    console.log('\n--- Cadastrar Novo Usuário ---');
+    const name = await askQuestion('Nome: ');
+    if (!name.trim()) return console.log('Erro: O nome não pode ser vazio.');
+
+    const email = await askQuestion('E-mail: ');
+    if (!isValidEmail(email)) return console.log('Erro: Formato de e-mail inválido.');
+
+    const birthdate = await askQuestion('Data de Nascimento (YYYY-MM-DD): ');
+    if (!isValidDate(birthdate)) return console.log('Erro: Formato de data inválido. Use YYYY-MM-DD.');
+
+    try {
+        await runQuery(`INSERT INTO users (name, email, birthdate) VALUES (?, ?, ?)`, [name, email, birthdate]);
+        console.log('✅ Usuário cadastrado com sucesso!');
+    } catch (error) {
+        if (error.code === 'SQLITE_CONSTRAINT') {
+            console.log('❌ Erro: Este e-mail já está cadastrado no sistema.');
+        } else {
+            console.log('❌ Erro ao cadastrar usuário:', error.message);
+        }
     }
-  }
 };
 
-const listUsers = () => {
-  try {
-    const stmt = db.prepare('SELECT * FROM users');
-    const users = stmt.all();
+const listUsers = async () => {
+    console.log('\n--- Lista de Usuários ---');
+    try {
+        const users = await getQuery(`SELECT * FROM users`);
+        if (users.length === 0) {
+            console.log('Nenhum usuário cadastrado.');
+        } else {
+            console.table(users);
+        }
+    } catch (error) {
+        console.log('❌ Erro ao listar usuários:', error.message);
+    }
+};
+
+const updateUser = async () => {
+    console.log('\n--- Atualizar Usuário ---');
+    const idStr = await askQuestion('ID do usuário que deseja atualizar: ');
+    const id = parseInt(idStr);
+
+    if (isNaN(id)) return console.log('Erro: ID inválido.');
+
+    try {
+        const users = await getQuery(`SELECT * FROM users WHERE id = ?`, [id]);
+        if (users.length === 0) return console.log('❌ Erro: Usuário não encontrado.');
+
+        const user = users[0];
+        console.log('(Deixe em branco para manter o valor atual)');
+        
+        let name = await askQuestion(`Nome [${user.name}]: `);
+        name = name.trim() || user.name;
+
+        let email = await askQuestion(`E-mail [${user.email}]: `);
+        email = email.trim() || user.email;
+        if (email !== user.email && !isValidEmail(email)) {
+            return console.log('Erro: Formato de e-mail inválido.');
+        }
+
+        let birthdate = await askQuestion(`Data de Nascimento [${user.birthdate}]: `);
+        birthdate = birthdate.trim() || user.birthdate;
+        if (birthdate !== user.birthdate && !isValidDate(birthdate)) {
+            return console.log('Erro: Formato de data inválido. Use YYYY-MM-DD.');
+        }
+
+        await runQuery(`UPDATE users SET name = ?, email = ?, birthdate = ? WHERE id = ?`, [name, email, birthdate, id]);
+        console.log('✅ Usuário atualizado com sucesso!');
+    } catch (error) {
+        if (error.code === 'SQLITE_CONSTRAINT') {
+            console.log('❌ Erro: O novo e-mail informado já está em uso por outro usuário.');
+        } else {
+            console.log('❌ Erro ao atualizar usuário:', error.message);
+        }
+    }
+};
+
+const deleteUser = async () => {
+    console.log('\n--- Remover Usuário ---');
+    const idStr = await askQuestion('ID do usuário que deseja remover: ');
+    const id = parseInt(idStr);
+
+    if (isNaN(id)) return console.log('Erro: ID inválido.');
+
+    try {
+        const result = await runQuery(`DELETE FROM users WHERE id = ?`, [id]);
+        if (result.changes === 0) {
+            console.log('❌ Erro: Usuário não encontrado.');
+        } else {
+            console.log('✅ Usuário removido com sucesso!');
+        }
+    } catch (error) {
+        console.log('❌ Erro ao remover usuário:', error.message);
+    }
+};
+
+// ==========================================
+// MENU PRINCIPAL
+// ==========================================
+const showMenu = async () => {
+    console.log('\n=========================');
+    console.log(' GERENCIADOR DE USUÁRIOS');
+    console.log('=========================');
+    console.log('1. Cadastrar Usuário');
+    console.log('2. Listar Usuários');
+    console.log('3. Atualizar Usuário');
+    console.log('4. Remover Usuário');
+    console.log('5. Sair');
+    console.log('=========================');
     
-    if (users.length === 0) {
-      console.log('Nenhum usuário cadastrado.');
-    } else {
-      console.table(users);
+    const option = await askQuestion('Escolha uma opção: ');
+
+    switch (option.trim()) {
+        case '1':
+            await createUser();
+            break;
+        case '2':
+            await listUsers();
+            break;
+        case '3':
+            await updateUser();
+            break;
+        case '4':
+            await deleteUser();
+            break;
+        case '5':
+            console.log('Encerrando o sistema...');
+            db.close();
+            rl.close();
+            return;
+        default:
+            console.log('Opção inválida. Tente novamente.');
     }
-  } catch (error) {
-    console.error('Erro ao listar usuários:', error.message);
-  }
+
+    // Loop do menu
+    showMenu();
 };
 
-const updateUser = (id, name, email, birthdate) => {
-  if (!id || !name || !email || !birthdate) {
-    return console.error('Erro: Para atualizar, informe <id> <nome> <email> <data_nascimento YYYY-MM-DD>.');
-  }
-  if (!isValidEmail(email)) {
-    return console.error('Erro: O formato do e-mail é inválido.');
-  }
-  if (!isValidDate(birthdate)) {
-    return console.error('Erro: A data de nascimento deve estar no formato YYYY-MM-DD.');
-  }
-
-  try {
-    const stmt = db.prepare('UPDATE users SET name = ?, email = ?, birthdate = ? WHERE id = ?');
-    const info = stmt.run(name, email, birthdate, id);
-    
-    if (info.changes > 0) {
-      console.log(`✅ Usuário ID ${id} atualizado com sucesso!`);
-    } else {
-      console.error(`Erro: Usuário com ID ${id} não encontrado.`);
+// Inicialização da Aplicação
+const startApp = async () => {
+    try {
+        await initDB();
+        showMenu();
+    } catch (error) {
+        console.error('Falha ao inicializar o banco de dados:', error);
+        process.exit(1);
     }
-  } catch (error) {
-    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-      console.error('Erro: Este e-mail já está sendo usado por outro usuário.');
-    } else {
-      console.error('Erro ao atualizar usuário:', error.message);
-    }
-  }
 };
 
-const removeUser = (id) => {
-  if (!id) {
-    return console.error('Erro: Para remover, informe o <id> do usuário.');
-  }
-
-  try {
-    const stmt = db.prepare('DELETE FROM users WHERE id = ?');
-    const info = stmt.run(id);
-    
-    if (info.changes > 0) {
-      console.log(`✅ Usuário ID ${id} removido com sucesso!`);
-    } else {
-      console.error(`Erro: Usuário com ID ${id} não encontrado.`);
-    }
-  } catch (error) {
-    console.error('Erro ao remover usuário:', error.message);
-  }
-};
-
-// Roteador de Comandos
-switch (command) {
-  case 'add':
-    addUser(args[0], args[1], args[2]);
-    break;
-  case 'list':
-    listUsers();
-    break;
-  case 'update':
-    updateUser(args[0], args[1], args[2], args[3]);
-    break;
-  case 'remove':
-    removeUser(args[0]);
-    break;
-  default:
-    console.log(`
-CLI de Gerenciamento de Usuários
-Uso: node index.js <comando> [argumentos]
-
-Comandos disponíveis:
-  add <nome> <email> <data_nascimento>   Cadastra um novo usuário (Data em YYYY-MM-DD)
-  list                                   Lista todos os usuários
-  update <id> <nome> <email> <data>      Atualiza os dados de um usuário existente
-  remove <id>                            Remove um usuário pelo ID
-    `);
-    break;
-}
+startApp();
 ```
