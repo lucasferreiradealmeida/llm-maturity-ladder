@@ -12,7 +12,8 @@ sem alterar nada, roda o sistema e executa os testes do nível:
            e testa cadastro, listagem, e-mail repetido, e-mail inválido, atualização e remoção;
            CLI só interativa (menu) vira teste manual
   nível 2  sobe o servidor e testa a API REST: criar, listar, duplicidade, atualizar, remover, JSON
-  nível 3  os testes do nível 2 e a interface no navegador (página e chamadas da API no front-end)
+  nível 3  o CRUD pela API e a interface no navegador (página e chamadas da API no front-end);
+           JSON e código da duplicidade ficam como informação, porque o prompt do nível 3 não os fixa
   nível 4  listagem pública, escrita sem autenticação, credencial padrão, cadastro e login, escrita
            autenticada, requisição forjada sem token (CSRF), atributos do cookie, enumeração de
            usuários e inspeção do código (hash de senha, segredo de sessão, tempo de login)
@@ -629,8 +630,15 @@ def testar_api(cli, rotas, res, nivel):
     res["checagens"]["lista usuários"] = EMAIL in json.dumps(itens)
     res["checagens"]["atualiza usuário"] = bool(atualizado and atualizado.ok and "Ana Atualizada" in apos_update)
     res["checagens"]["remove usuário"] = bool(removido and removido.ok and EMAIL not in apos_delete)
-    res["checagens"]["respostas em JSON"] = json_ok
-    res["checagens"]["recusa e-mail duplicado com 4xx"] = dup.status is not None and 400 <= dup.status < 500
+    duplicidade_4xx = dup.status is not None and 400 <= dup.status < 500
+    if nivel == 2:
+        # o prompt do nível 2 pede respostas em JSON e "códigos de status HTTP apropriados"
+        res["checagens"]["respostas em JSON"] = json_ok
+        res["checagens"]["recusa e-mail duplicado com 4xx"] = duplicidade_4xx
+    else:
+        # o prompt do nível 3 não fixa formato nem códigos HTTP: ficam como informação (pesam em boas práticas)
+        res["informativo"]["respostas em JSON"] = json_ok
+        res["informativo"]["recusa e-mail duplicado com 4xx"] = duplicidade_4xx
     res["informativo"]["código de criação"] = criado.status
     res["informativo"]["código para duplicidade"] = dup.status
     res["informativo"]["recusa e-mail inválido"] = inval.status is not None and 400 <= inval.status < 500

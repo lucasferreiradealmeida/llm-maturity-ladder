@@ -7,7 +7,8 @@ Uso:
 Para cada bloco de código cercado (```), o nome do arquivo é procurado, nesta ordem:
   1. nas até três linhas não vazias anteriores ao bloco, como caminho entre crases, em negrito
      ou no próprio título (ex.: ### `src/db.js`, **src/db.js**, "## 2. Arquivo **package.json**",
-     "Script de criação (`db/schema.sql`)");
+     "Script de criação (`db/schema.sql`)"); um nome incompatível com a linguagem do bloco,
+     citado na prosa entre o título e o bloco, é pulado e a busca continua nas linhas acima;
   2. na primeira linha do bloco, como comentário com um caminho
      (ex.: // package.json, # .env.example, <!-- public/index.html -->, -- db/schema.sql),
      caso em que essa linha é removida do arquivo gerado.
@@ -83,14 +84,18 @@ def eh_arvore(corpo):
     return any(("├" in l or "└" in l or "│" in l) for l in corpo)
 
 
-def nome_arquivo(corpo, anteriores):
+def nome_arquivo(corpo, anteriores, lang=""):
     for linha in reversed(anteriores):
         achados = []
         for regex in (RE_BACKTICK, RE_NEGRITO, RE_TITULO):
             achados += [a for a in regex.findall(linha) if a.lower() not in NAO_SAO_ARQUIVOS]
         distintos = list(dict.fromkeys(achados))
         if len(distintos) == 1:
-            return distintos[0], corpo
+            if compativel(distintos[0], lang):
+                return distintos[0], corpo
+            # prosa entre o título e o bloco citando outro arquivo (ex.: "ao lado do `server.js`"
+            # antes de um bloco html): o nome não serve para este bloco, segue procurando acima
+            continue
         # linha de prosa citando vários arquivos não identifica o bloco
     if corpo:
         m = RE_COMMENT.match(corpo[0])
@@ -120,7 +125,7 @@ def extrair(md_path, destino):
     for lang, corpo, anteriores in blocos(texto):
         if eh_arvore(corpo):
             continue
-        nome, conteudo = nome_arquivo(corpo, anteriores)
+        nome, conteudo = nome_arquivo(corpo, anteriores, lang)
         if not nome or nome.startswith("/") or ".." in nome or not compativel(nome, lang):
             continue
         if nome.startswith("./"):
