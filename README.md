@@ -18,7 +18,8 @@ Universitário IESB.
 harness/    → código que envia os prompts às APIs e salva as respostas brutas com metadados
 outputs/    → as 60 respostas brutas (5 níveis × 4 modelos × 3 tentativas)
 dados/      → planilha de avaliação (60 execuções × 6 critérios), com o registro da revisão
-analise/    → scripts que extraem o código das respostas e refazem a análise estática (ESLint)
+analise/    → scripts que extraem o código das respostas, testam os sistemas gerados e refazem
+              a análise estática (ESLint)
 ```
 
 ## Escopo da coleta
@@ -43,9 +44,10 @@ esse parâmetro; os demais usaram a temperatura padrão da API.
 
 Duas ressalvas, discutidas no artigo (Seções 4.2, 4.3 e 5.6):
 
-- **Gemini:** as tentativas 1 e 2 chamaram o alias `gemini-pro-latest`, e o provider registra só o
-  nome pedido, não a versão resolvida; apenas a tentativa 3 usou o identificador fixo. O Gemini
-  também foi o único modelo com temperatura 0,2, valor que o guia do Gemini 3 desaconselha.
+- **Gemini:** as tentativas 1 e 2 chamaram o alias `gemini-pro-latest`, e o provider da época
+  registrava só o nome pedido, não a versão resolvida; apenas a tentativa 3 usou o identificador
+  fixo (ver "Refazer as tentativas 1 e 2 do Gemini", abaixo). O Gemini também foi o único modelo
+  com temperatura 0,2, valor que o guia do Gemini 3 desaconselha.
 - **GPT-OSS-120B:** além do teto menor, rodou com `reasoning_effort: "low"` (de 21 a 89 tokens de
   raciocínio por resposta). Nenhuma das 15 respostas atingiu o teto de 7.500 tokens.
 
@@ -54,21 +56,35 @@ foram repetidas com o teto novo, e os arquivos em `outputs/` guardam a resposta 
 
 ## harness/
 
-Script Node.js que envia os prompts do Apêndice A do artigo para as APIs da Anthropic, OpenAI,
-Google e Groq, com retry automático, e salva cada resposta com os metadados da chamada (modelo,
-tokens, motivo de parada). A extração do código e os testes de execução foram feitos à parte; a
-extração e a análise estática estão em `analise/`. Requer chaves de API próprias
-(`.env.example` mostra as variáveis).
+Script Node.js (versão 18 ou superior) que envia os prompts do Apêndice A do artigo para as APIs
+da Anthropic, OpenAI, Google e Groq, com nova tentativa automática em erros transitórios, e salva
+cada resposta com o prompt e os metadados da chamada. Requer chaves de API próprias, que ficam só no
+arquivo `.env` da sua máquina (`.env.example` mostra as variáveis).
 
 ```bash
 cd harness
 npm install
-cp .env.example .env   # preencha com suas chaves
-node run.js                                     # 1 tentativa, todos os níveis/provedores
-node run.js --attempts=3                        # 3 tentativas por combinação
-node run.js --attempts=3 --start-attempt=3      # roda só a tentativa 3
-node run.js --levels=0,1 --providers=claude,gpt # filtra níveis e/ou provedores
+cp .env.example .env                  # preencha com suas chaves
+node test-connection.js               # testa os 4 provedores (a chave nunca é impressa inteira)
+node run.js --simular                 # mostra modelos e parâmetros, sem chamar as APIs
+node run.js --attempts=3              # 3 tentativas por combinação, gravadas em harness/outputs/
+node run.js --attempts=3 --start-attempt=3        # roda só a tentativa 3
+node run.js --levels=0,1 --providers=claude,gpt   # filtra níveis e/ou provedores
+node run.js --saida=../outra-pasta    # grava em outra pasta
 ```
+
+Um arquivo que já existe nunca é sobrescrito sem `--sobrescrever`. Cada chamada também acrescenta
+uma linha a `run-log.csv`, com o modelo pedido, a versão resolvida pela API, os parâmetros enviados
+e o motivo de parada (`MAX_TOKENS` ou `length` indicam resposta truncada).
+
+**Versão do harness.** O código que fez a coleta de agosto de 2026 é o do commit
+[`7ab1784`](https://github.com/lucasferreiradealmeida/llm-maturity-ladder/tree/7ab1784/harness).
+Em 28/09/2026, o harness foi revisto sem mudar o que é enviado aos modelos. O provider do Gemini
+passou a chamar a API REST diretamente, no lugar do SDK legado `@google/generative-ai`, para
+registrar a versão resolvida pelo servidor (`modelVersion`) e os tokens de raciocínio. Todos os
+providers passaram a registrar os parâmetros de fato enviados, e o cabeçalho dos arquivos deixou
+de anotar uma temperatura que só o Gemini recebia. Os parâmetros do Gemini, antes fixos no código,
+vêm do `.env`; o `.env.example` repete os valores da coleta.
 
 ## outputs/
 
@@ -80,9 +96,11 @@ Cinco arquivos (`nivel2-claude-t1`, `nivel2-claude-t2`, `nivel3-gemini-t1`, `niv
 Gemini, a resposta publicada é menor que o tamanho registrado na planilha durante a avaliação
 (colunas F e O da aba `Avaliacao`).
 
-Quatro execuções (`nivel0-groq-t1`, `nivel1-groq-t2` e as duas do nível 1 do Gemini na coleta
-original) usam bibliotecas de terminal interativo, incompatíveis com a execução em lote, e foram
-validadas manualmente pelo autor em ambiente local.
+Quatro execuções foram validadas manualmente pelo autor, em ambiente local: `nivel0-groq-t1` e
+`nivel1-groq-t2`, que usam bibliotecas de terminal interativo (prompt-sync e inquirer),
+incompatíveis com a execução em lote, e as duas do nível 1 do Gemini na coleta original (t1 e t2),
+cujo `better-sqlite3` não instalou no ambiente automatizado. A `nivel1-gemini-t3` também é um menu
+interativo (readline) e foi testada no ambiente automatizado com respostas simuladas.
 
 ## dados/rubrica-tcc.xlsx
 
@@ -123,7 +141,10 @@ As notas foram revistas depois da coleta para aplicar as regras acima de forma u
 
 ## analise/
 
-Reproduz a extração do código e a análise estática. Requer Python 3 e Node.js 18 ou superior.
+Reproduz a extração do código, os testes de execução e a análise estática. Requer Python 3.9 ou
+superior e Node.js 18 ou superior; no Windows, troque `python3` por `py`.
+
+### Extração e ESLint
 
 ```bash
 cd analise
@@ -135,6 +156,69 @@ node eslint.mjs ../projetos resultados-eslint.csv
 A configuração do ESLint (regras recomendadas do ESLint 9, globais de navegador nos arquivos de
 `public/` e similares, duas exceções documentadas para falsos positivos) está descrita no cabeçalho
 de `eslint.mjs`. O resultado da execução de 28/09/2026 está em `analise/resultados-eslint.csv`.
+
+### Testes dos sistemas gerados
+
+`testar.py` refaz os testes de execução de forma automática. Para cada resposta bruta, extrai o
+código, roda `npm install` sem alterar nada, sobe o sistema e testa os requisitos do prompt:
+
+| Nível | O que é testado |
+|---|---|
+| 0 | duas execuções seguidas: o CSV precisa ter os dois nomes, com data, sem sobrescrever |
+| 1 | pela CLI: cadastro, listagem, e-mail repetido, e-mail inválido, atualização e remoção |
+| 2 | pela API REST: criação, listagem, duplicidade, atualização, remoção e respostas em JSON |
+| 3 | os testes do nível 2, mais a página e as chamadas à API feitas pelo front-end |
+| 4 | listagem pública, escrita sem login, cadastro e login, escrita autenticada, requisição forjada sem token (CSRF), atributos do cookie, credencial padrão e inspeção do código (hash de senha, segredo de sessão, tempo de login) |
+
+```bash
+# a partir da raiz do repositório
+python3 analise/testar.py --outputs outputs --saida resultados-testes
+python3 analise/testar.py --outputs outputs --filtro "nivel4-*" --saida resultados-nivel4
+pip install openpyxl   # só para a comparação com a planilha
+python3 analise/comparar_planilha.py resultados-testes/resumo.csv dados/rubrica-tcc.xlsx comparacao.csv
+```
+
+Na pasta de `--saida` ficam o `resumo.csv` (sugestões de "rodou sem alteração", completude e
+aspectos de segurança, pelas regras da aba `Instrucoes` da planilha), o `relatorio.md` (as
+evidências de cada teste) e um `.json` por execução. São sugestões: o avaliador confere as
+evidências antes de registrar as notas, e as boas práticas continuam avaliadas pela rubrica.
+Programas só interativos (menus) ficam marcados para teste manual, e um `npm install` que falha
+sem alterações marca a execução como dependente de correção. Os sistemas gerados rodam na sua
+máquina; prefira um ambiente descartável.
+
+**Validação (28/09/2026).** Aplicado às 60 respostas de `outputs/` (Linux, Node.js 22 e
+Python 3.11), o script avaliou 49 execuções por conta própria, e as 49 notas de completude
+coincidiram com as da planilha revisada, assim como as notas de segurança das 11 execuções do
+nível 4 entre elas. As outras 11 são exatamente os casos documentados: as nove que precisaram de
+correção manual (sete do GPT-OSS-120B e duas do Gemini) e dois menus interativos
+(`nivel0-groq-t1` e `nivel1-gemini-t3`). A coluna "rodou sem alteração" coincidiu nas 58
+execuções não interativas. As evidências estão em `analise/validacao-testes-2026-09-28/`.
+
+## Refazer as tentativas 1 e 2 do Gemini
+
+As tentativas 1 e 2 do Gemini chamaram o alias `gemini-pro-latest` sem registrar a versão
+resolvida (Seção 5.6 do artigo). Para refazê-las com o identificador fixo `gemini-3.1-pro-preview`
+e a mesma configuração da tentativa 3 (temperatura 0,2, orçamento de raciocínio de 2.048 tokens e
+teto de 16.000 tokens), são 10 chamadas:
+
+```bash
+cd harness
+npm install
+cp .env.example .env            # preencha só GEMINI_API_KEY; os demais valores já são os da coleta
+node test-connection.js gemini  # confere a chave e mostra a versão resolvida do modelo
+node run.js --providers=gemini --attempts=2 --saida=../outputs-gemini-refeito --simular
+node run.js --providers=gemini --attempts=2 --saida=../outputs-gemini-refeito
+cd ..
+python3 analise/testar.py --outputs outputs-gemini-refeito --saida resultados-gemini-refeito
+```
+
+As respostas originais em `outputs/` não são alteradas. As novas só entram na análise depois de
+avaliadas pelos mesmos critérios; nesse momento, as originais passam para `outputs/substituidas/`
+e a troca fica registrada na aba `Revisao` da planilha.
+
+Para rodar o Gemini no padrão da API (temperatura 1,0, a recomendada pelo Google para o Gemini 3),
+refaça as três tentativas (`--attempts=3`) com os ajustes indicados no `.env.example`, para que elas
+continuem comparáveis entre si.
 
 ## Principais achados
 
