@@ -1,11 +1,12 @@
 <!--
 nivel: 2 - API REST
 provider: gemini
-model: gemini-pro-latest
+model: gemini-3.1-pro-preview
+modelo_resolvido: gemini-3.1-pro-preview
 tentativa: 2
 temperature: 0.2
-timestamp: 2026-08-18T17:07:53.703Z
-metadata: {"model":"gemini-pro-latest","usage":{"promptTokenCount":205,"candidatesTokenCount":2208,"totalTokenCount":3703,"promptTokensDetails":[{"modality":"TEXT","tokenCount":205}],"thoughtsTokenCount":1290,"serviceTier":"standard"},"finish_reason":"STOP"}
+timestamp: 2026-09-28T18:33:14.274Z
+metadata: {"model":"gemini-3.1-pro-preview","modelVersion":"gemini-3.1-pro-preview","responseId":"6rK6apHJGsqhz7IP95rZkAs","usage":{"promptTokenCount":205,"candidatesTokenCount":2264,"totalTokenCount":3699,"promptTokensDetails":[{"modality":"TEXT","tokenCount":205}],"thoughtsTokenCount":1230,"serviceTier":"standard"},"finish_reason":"STOP","parametros":{"maxOutputTokens":16000,"temperature":0.2,"thinkingConfig":{"thinkingBudget":2048}}}
 -->
 
 ## Prompt enviado
@@ -29,51 +30,61 @@ RESTRICOES:
 
 ## Resposta do modelo
 
-Aqui está a implementação completa do sistema de cadastro de usuários em uma API REST utilizando Node.js, Express e SQLite.
+Como engenheiro de software, projetei a solução utilizando **Node.js** com os pacotes **Express** (para roteamento e manipulação HTTP, sendo o padrão mais enxuto e aceito para APIs REST em Node) e **sqlite3** (driver nativo para comunicação com o banco de dados). 
 
-### Decisões de Arquitetura e Assunções:
-1. **Framework Express:** Utilizei o `express` pois construir um roteador REST e um parser de JSON robustos do zero com o módulo nativo `http` seria reinventar a roda, o que vai contra as boas práticas de engenharia de software.
-2. **Banco de Dados:** Utilizei o pacote `sqlite3`. O banco de dados será salvo em um arquivo local chamado `database.sqlite`.
-3. **Validação:** Adicionei validações básicas para garantir que `nome`, `email` e `data_nascimento` sejam enviados. O e-mail foi configurado como `UNIQUE` no banco de dados para evitar duplicidade.
-4. **Formato de Data:** Assumi que a data de nascimento (`data_nascimento`) será enviada e armazenada como uma string no formato ISO (`YYYY-MM-DD`).
+### Decisões de Arquitetura e Premissas Assumidas:
+1. **Validação Básica:** Assumi que todos os campos (nome, e-mail, data de nascimento) são obrigatórios.
+2. **Formato de Data:** Assumi que a data de nascimento (`birthdate`) será enviada e armazenada como string no formato ISO 8601 (`YYYY-MM-DD`).
+3. **Unicidade:** O campo `email` foi definido como `UNIQUE` no banco de dados. Tentativas de cadastrar e-mails duplicados retornarão erro `400 Bad Request`.
+4. **Estrutura:** O código foi dividido em `database.js` (configuração do banco) e `server.js` (lógica da API) para manter a organização. O banco será salvo em um arquivo local chamado `database.sqlite`.
 
 ---
 
 ### Instruções de Execução
 
-**1. Pré-requisitos:**
-Certifique-se de ter o [Node.js](https://nodejs.org/) instalado na sua máquina (versão 14 ou superior).
-
-**2. Instalação:**
-Crie uma pasta para o projeto, salve os arquivos abaixo dentro dela e, no terminal, execute os seguintes comandos:
-
-```bash
-# Inicializa o projeto Node.js
-npm init -y
-
-# Instala as dependências estritamente necessárias
-npm install express sqlite3
-```
-
-**3. Como rodar:**
-No terminal, dentro da pasta do projeto, execute:
-```bash
-node index.js
-```
-O servidor iniciará na porta `3000`.
+1. **Pré-requisitos:** Certifique-se de ter o [Node.js](https://nodejs.org/) instalado na sua máquina.
+2. **Crie um diretório para o projeto** e entre nele:
+   ```bash
+   mkdir api-usuarios
+   cd api-usuarios
+   ```
+3. **Crie os arquivos** listados abaixo com seus respectivos conteúdos.
+4. **Instale as dependências**:
+   ```bash
+   npm install
+   ```
+5. **Inicie o servidor**:
+   ```bash
+   npm start
+   ```
+O servidor estará rodando em `http://localhost:3000`.
 
 ---
 
 ### Arquivos do Projeto
 
-`database.js`
-```javascript
-// database.js
-// Responsável por inicializar a conexão com o SQLite e criar a tabela se não existir.
+**`package.json`**
+```json
+{
+  "name": "api-usuarios",
+  "version": "1.0.0",
+  "description": "API REST para cadastro de usuários com SQLite",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "sqlite3": "^5.1.6"
+  }
+}
+```
 
+**`database.js`**
+```javascript
 const sqlite3 = require('sqlite3').verbose();
 
-// Cria ou conecta ao arquivo de banco de dados local
+// Conecta ao banco de dados SQLite (cria o arquivo se não existir)
 const db = new sqlite3.Database('./database.sqlite', (err) => {
     if (err) {
         console.error('Erro ao conectar ao banco de dados:', err.message);
@@ -82,146 +93,142 @@ const db = new sqlite3.Database('./database.sqlite', (err) => {
     }
 });
 
-// Criação da tabela de usuários
-db.serialize(() => {
-    db.run(`
-        CREATE TABLE IF NOT EXISTS usuarios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT NOT NULL,
-            email TEXT NOT NULL UNIQUE,
-            data_nascimento TEXT NOT NULL
-        )
-    `, (err) => {
-        if (err) {
-            console.error('Erro ao criar tabela:', err.message);
-        }
-    });
+// Criação da tabela de usuários caso não exista
+const createTableQuery = `
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        birthdate TEXT NOT NULL
+    )
+`;
+
+db.run(createTableQuery, (err) => {
+    if (err) {
+        console.error('Erro ao criar tabela:', err.message);
+    }
 });
 
 module.exports = db;
 ```
 
-`index.js`
+**`server.js`**
 ```javascript
-// index.js
-// Arquivo principal da API REST contendo as rotas (Endpoints)
-
 const express = require('express');
 const db = require('./database');
 
 const app = express();
 const PORT = 3000;
 
-// Middleware para fazer o parse do corpo das requisições em JSON
+// Middleware para fazer o parse do corpo das requisições para JSON
 app.use(express.json());
 
 // ==========================================
-// ENDPOINTS (CRUD)
+// ENDPOINTS DA API
 // ==========================================
 
-// 1. CREATE - Criar um novo usuário
-app.post('/usuarios', (req, res) => {
-    const { nome, email, data_nascimento } = req.body;
+// 1. CREATE: Criar um novo usuário
+app.post('/users', (req, res) => {
+    const { name, email, birthdate } = req.body;
 
-    // Validação básica
-    if (!nome || !email || !data_nascimento) {
-        return res.status(400).json({ erro: 'Nome, email e data_nascimento são obrigatórios.' });
+    // Validação simples
+    if (!name || !email || !birthdate) {
+        return res.status(400).json({ error: 'Nome, e-mail e data de nascimento são obrigatórios.' });
     }
 
-    const sql = `INSERT INTO usuarios (nome, email, data_nascimento) VALUES (?, ?, ?)`;
+    const query = `INSERT INTO users (name, email, birthdate) VALUES (?, ?, ?)`;
     
-    db.run(sql, [nome, email, data_nascimento], function(err) {
+    // Usamos function() em vez de arrow function para ter acesso ao 'this.lastID'
+    db.run(query, [name, email, birthdate], function(err) {
         if (err) {
-            // Tratamento para e-mail duplicado (Constraint UNIQUE)
+            // Tratamento para e-mail duplicado (constraint UNIQUE)
             if (err.message.includes('UNIQUE constraint failed')) {
-                return res.status(400).json({ erro: 'Este e-mail já está cadastrado.' });
+                return res.status(400).json({ error: 'Este e-mail já está cadastrado.' });
             }
-            return res.status(500).json({ erro: 'Erro interno do servidor.' });
+            return res.status(500).json({ error: 'Erro interno do servidor.' });
         }
         
-        // Retorna 201 (Created) e os dados do usuário criado
         res.status(201).json({
             id: this.lastID,
-            nome,
+            name,
             email,
-            data_nascimento
+            birthdate
         });
     });
 });
 
-// 2. READ - Listar todos os usuários
-app.get('/usuarios', (req, res) => {
-    const sql = `SELECT * FROM usuarios`;
+// 2. READ: Listar todos os usuários
+app.get('/users', (req, res) => {
+    const query = `SELECT * FROM users`;
     
-    db.all(sql, [], (err, rows) => {
+    db.all(query, [], (err, rows) => {
         if (err) {
-            return res.status(500).json({ erro: 'Erro ao buscar usuários.' });
+            return res.status(500).json({ error: 'Erro ao buscar usuários.' });
         }
         res.status(200).json(rows);
     });
 });
 
-// 3. READ - Buscar um usuário específico por ID
-app.get('/usuarios/:id', (req, res) => {
+// 3. READ: Buscar um usuário específico por ID
+app.get('/users/:id', (req, res) => {
     const { id } = req.params;
-    const sql = `SELECT * FROM usuarios WHERE id = ?`;
+    const query = `SELECT * FROM users WHERE id = ?`;
     
-    db.get(sql, [id], (err, row) => {
+    db.get(query, [id], (err, row) => {
         if (err) {
-            return res.status(500).json({ erro: 'Erro ao buscar o usuário.' });
+            return res.status(500).json({ error: 'Erro ao buscar usuário.' });
         }
         if (!row) {
-            return res.status(404).json({ erro: 'Usuário não encontrado.' });
+            return res.status(404).json({ error: 'Usuário não encontrado.' });
         }
         res.status(200).json(row);
     });
 });
 
-// 4. UPDATE - Atualizar dados de um usuário
-app.put('/usuarios/:id', (req, res) => {
+// 4. UPDATE: Atualizar um usuário existente
+app.put('/users/:id', (req, res) => {
     const { id } = req.params;
-    const { nome, email, data_nascimento } = req.body;
+    const { name, email, birthdate } = req.body;
 
-    if (!nome || !email || !data_nascimento) {
-        return res.status(400).json({ erro: 'Nome, email e data_nascimento são obrigatórios.' });
+    if (!name || !email || !birthdate) {
+        return res.status(400).json({ error: 'Nome, e-mail e data de nascimento são obrigatórios.' });
     }
 
-    const sql = `UPDATE usuarios SET nome = ?, email = ?, data_nascimento = ? WHERE id = ?`;
+    const query = `UPDATE users SET name = ?, email = ?, birthdate = ? WHERE id = ?`;
     
-    db.run(sql, [nome, email, data_nascimento, id], function(err) {
+    db.run(query, [name, email, birthdate, id], function(err) {
         if (err) {
             if (err.message.includes('UNIQUE constraint failed')) {
-                return res.status(400).json({ erro: 'Este e-mail já está em uso por outro usuário.' });
+                return res.status(400).json({ error: 'Este e-mail já está em uso por outro usuário.' });
             }
-            return res.status(500).json({ erro: 'Erro ao atualizar o usuário.' });
+            return res.status(500).json({ error: 'Erro ao atualizar usuário.' });
         }
         
+        // this.changes indica quantas linhas foram afetadas
         if (this.changes === 0) {
-            return res.status(404).json({ erro: 'Usuário não encontrado.' });
+            return res.status(404).json({ error: 'Usuário não encontrado.' });
         }
         
-        res.status(200).json({
-            mensagem: 'Usuário atualizado com sucesso.',
-            usuario: { id: Number(id), nome, email, data_nascimento }
-        });
+        res.status(200).json({ id: Number(id), name, email, birthdate });
     });
 });
 
-// 5. DELETE - Remover um usuário
-app.delete('/usuarios/:id', (req, res) => {
+// 5. DELETE: Remover um usuário
+app.delete('/users/:id', (req, res) => {
     const { id } = req.params;
-    const sql = `DELETE FROM usuarios WHERE id = ?`;
+    const query = `DELETE FROM users WHERE id = ?`;
     
-    db.run(sql, [id], function(err) {
+    db.run(query, [id], function(err) {
         if (err) {
-            return res.status(500).json({ erro: 'Erro ao deletar o usuário.' });
+            return res.status(500).json({ error: 'Erro ao deletar usuário.' });
         }
         
         if (this.changes === 0) {
-            return res.status(404).json({ erro: 'Usuário não encontrado.' });
+            return res.status(404).json({ error: 'Usuário não encontrado.' });
         }
         
-        res.status(200).json({ mensagem: 'Usuário removido com sucesso.' });
+        // 204 No Content é o padrão REST para deleção com sucesso sem corpo de resposta
+        res.status(204).send();
     });
 });
 
@@ -229,38 +236,36 @@ app.delete('/usuarios/:id', (req, res) => {
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
     console.log(`Endpoints disponíveis:`);
-    console.log(`POST   http://localhost:${PORT}/usuarios`);
-    console.log(`GET    http://localhost:${PORT}/usuarios`);
-    console.log(`GET    http://localhost:${PORT}/usuarios/:id`);
-    console.log(`PUT    http://localhost:${PORT}/usuarios/:id`);
-    console.log(`DELETE http://localhost:${PORT}/usuarios/:id`);
+    console.log(`  POST   /users`);
+    console.log(`  GET    /users`);
+    console.log(`  GET    /users/:id`);
+    console.log(`  PUT    /users/:id`);
+    console.log(`  DELETE /users/:id`);
 });
 ```
 
-### Como testar (Exemplos com cURL)
-
-Você pode usar ferramentas como Postman, Insomnia ou o próprio terminal (cURL) para testar:
+### Como testar (Exemplos com `curl`)
 
 **Criar usuário:**
 ```bash
-curl -X POST http://localhost:3000/usuarios \
+curl -X POST http://localhost:3000/users \
 -H "Content-Type: application/json" \
--d '{"nome": "João Silva", "email": "joao@email.com", "data_nascimento": "1990-05-15"}'
+-d '{"name": "João Silva", "email": "joao@email.com", "birthdate": "1990-05-15"}'
 ```
 
 **Listar usuários:**
 ```bash
-curl -X GET http://localhost:3000/usuarios
+curl -X GET http://localhost:3000/users
 ```
 
-**Atualizar usuário (supondo ID 1):**
+**Atualizar usuário (substitua o `1` pelo ID real):**
 ```bash
-curl -X PUT http://localhost:3000/usuarios/1 \
+curl -X PUT http://localhost:3000/users/1 \
 -H "Content-Type: application/json" \
--d '{"nome": "João da Silva", "email": "joao.silva@email.com", "data_nascimento": "1990-05-15"}'
+-d '{"name": "João da Silva", "email": "joao.silva@email.com", "birthdate": "1990-05-15"}'
 ```
 
-**Deletar usuário (supondo ID 1):**
+**Deletar usuário (substitua o `1` pelo ID real):**
 ```bash
-curl -X DELETE http://localhost:3000/usuarios/1
+curl -X DELETE http://localhost:3000/users/1
 ```
