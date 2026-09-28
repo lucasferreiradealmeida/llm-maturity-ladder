@@ -1,0 +1,16 @@
+{
+  "name": "tcc-analise-estatica",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Extração do código das respostas e reexecução do ESLint nos 60 projetos do TCC",
+  "scripts": {
+    "extrair": "python3 extrair.py ../outputs ../projetos",
+    "eslint": "node eslint.mjs ../projetos resultados-eslint.csv"
+  },
+  "dependencies": {
+    "@eslint/js": "9.39.5",
+    "eslint": "9.39.5",
+    "globals": "15.15.0"
+  }
+}
