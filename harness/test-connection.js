@@ -22,6 +22,16 @@ function withTimeout(promise, ms, label) {
   ]);
 }
 
+// Explica os erros mais comuns em uma linha.
+function dica(mensagem) {
+  const status = Number((/HTTP (\d{3})/.exec(mensagem) || [])[1]);
+  if (status === 429 || status >= 500) return "erro temporário do servidor ou limite de uso: tente de novo em alguns minutos (o run.js repete sozinho)";
+  if (status === 404) return "modelo não encontrado: confira o nome do modelo no .env";
+  if (status === 400 || status === 401 || status === 403) return "chave recusada: confira a chave no .env (sem espaços nem aspas) e se a API está ativada na conta";
+  if (/timeout/i.test(mensagem)) return "sem resposta a tempo: confira a internet e tente de novo";
+  return "";
+}
+
 function maskKey(key) {
   if (!key) return "(nao definida)";
   if (key.length <= 8) return "***";
@@ -159,6 +169,8 @@ async function main() {
       console.log(`[${name}] tempo: ${((Date.now() - start) / 1000).toFixed(1)}s`);
     } catch (err) {
       console.error(`[${name}] FALHOU apos ${((Date.now() - start) / 1000).toFixed(1)}s -> ${err.message}`);
+      const explicacao = dica(err.message);
+      if (explicacao) console.error(`[${name}] o que fazer: ${explicacao}`);
     }
   }
 }
