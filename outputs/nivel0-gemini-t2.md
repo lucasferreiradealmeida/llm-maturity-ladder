@@ -1,11 +1,12 @@
 <!--
 nivel: 0 - Persistencia simples
 provider: gemini
-model: gemini-pro-latest
+model: gemini-3.1-pro-preview
+modelo_resolvido: gemini-3.1-pro-preview
 tentativa: 2
 temperature: 0.2
-timestamp: 2026-08-18T21:57:04.645Z
-metadata: {"model":"gemini-pro-latest","usage":{"promptTokenCount":193,"candidatesTokenCount":1166,"totalTokenCount":2313,"promptTokensDetails":[{"modality":"TEXT","tokenCount":193}],"thoughtsTokenCount":954,"serviceTier":"standard"},"finish_reason":"STOP"}
+timestamp: 2026-09-28T18:31:27.752Z
+metadata: {"model":"gemini-3.1-pro-preview","modelVersion":"gemini-3.1-pro-preview","responseId":"gLK6aoT8NqHoz7IPw5Wj2Aw","usage":{"promptTokenCount":193,"candidatesTokenCount":918,"totalTokenCount":2000,"promptTokensDetails":[{"modality":"TEXT","tokenCount":193}],"thoughtsTokenCount":889,"serviceTier":"standard"},"finish_reason":"STOP","parametros":{"maxOutputTokens":16000,"temperature":0.2,"thinkingConfig":{"thinkingBudget":2048}}}
 -->
 
 ## Prompt enviado
@@ -28,113 +29,92 @@ RESTRICOES:
 
 ## Resposta do modelo
 
-Aqui está a solução completa para o sistema de registro de usuários em um arquivo CSV, utilizando apenas os módulos nativos do Node.js, conforme solicitado.
+Aqui está a implementação completa do sistema solicitado. 
 
-### Decisões de Implementação (Assunções)
-1. **Interação via Terminal:** O script fará uma pergunta no terminal solicitando o nome do usuário.
-2. **Formato do CSV:** O arquivo será criado com o nome `usuarios.csv`. A primeira linha conterá os cabeçalhos (`"Nome","Data de Cadastro"`). Os dados serão encapsulados em aspas duplas para evitar que vírgulas no nome quebrem a estrutura do CSV.
-3. **Data:** A data de cadastro será salva no formato ISO 8601 (ex: `2023-10-25T12:00:00.000Z`) para manter um padrão universal.
-4. **Módulos:** Foram utilizados apenas os módulos nativos `fs` (File System), `readline` (para ler o input do terminal) e `path` (para resolver o caminho do arquivo). Nenhuma dependência externa (como `npm install`) é necessária.
-
----
-
-### Arquivos do Projeto
-
-**`package.json`** (Opcional, mas recomendado para definir o projeto Node.js)
-```json
-{
-  "name": "registro-usuarios-csv",
-  "version": "1.0.0",
-  "description": "Script para registrar usuários em um arquivo CSV",
-  "main": "index.js",
-  "scripts": {
-    "start": "node index.js"
-  },
-  "author": "Engenheiro de Software",
-  "license": "ISC"
-}
-```
-
-**`index.js`** (Código fonte principal)
-```javascript
-const fs = require('fs');
-const readline = require('readline');
-const path = require('path');
-
-// Configuração do arquivo de destino
-const FILE_NAME = 'usuarios.csv';
-const FILE_PATH = path.join(__dirname, FILE_NAME);
-
-// Configuração da interface de leitura do terminal
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
-});
-
-// Função principal
-function registrarUsuario() {
-  rl.question('Digite o nome do usuario: ', (nome) => {
-    // Tratamento básico: remove espaços extras e escapa aspas duplas
-    const nomeTratado = nome.trim().replace(/"/g, '""');
-    
-    if (!nomeTratado) {
-      console.log('Erro: O nome não pode estar vazio.');
-      rl.close();
-      return;
-    }
-
-    // Gera a data atual no formato ISO
-    const dataCadastro = new Date().toISOString();
-    
-    // Monta a linha do CSV
-    const linhaCsv = `"${nomeTratado}","${dataCadastro}"\n`;
-
-    try {
-      // Verifica se o arquivo já existe. Se não, cria e adiciona o cabeçalho.
-      if (!fs.existsSync(FILE_PATH)) {
-        const cabecalho = '"Nome","Data de Cadastro"\n';
-        fs.writeFileSync(FILE_PATH, cabecalho, 'utf8');
-      }
-
-      // Adiciona a nova linha ao final do arquivo (append) sem sobrescrever
-      fs.appendFileSync(FILE_PATH, linhaCsv, 'utf8');
-      
-      console.log(`\nSucesso! Usuário "${nomeTratado}" registrado em ${FILE_NAME}.`);
-    } catch (error) {
-      console.error('\nErro ao salvar no arquivo CSV:', error.message);
-    } finally {
-      // Encerra o processo do terminal
-      rl.close();
-    }
-  });
-}
-
-// Executa a função
-registrarUsuario();
-```
+### Decisões de Design Assumidas:
+1. **Entrada de Dados**: Optei por receber o nome do usuário via argumentos de linha de comando (`process.argv`). Isso torna o script fácil de automatizar e testar.
+2. **Formato da Data**: Utilizei o formato ISO 8601 (`YYYY-MM-DDTHH:mm:ss.sssZ`) por ser um padrão internacional seguro para ordenação e parsing em planilhas ou bancos de dados.
+3. **Cabeçalho do CSV**: O script verifica se o arquivo já existe. Se não existir, ele cria o arquivo e insere um cabeçalho (`"Nome","Data de Cadastro"`) antes de inserir o primeiro registro.
+4. **Módulos**: Utilizei apenas o módulo nativo `fs` (File System) do Node.js. Nenhuma biblioteca externa (como `csv-writer`) foi utilizada para manter o projeto o mais enxuto possível, conforme a restrição.
 
 ---
 
 ### Instruções de Execução
 
 **1. Pré-requisitos:**
-Certifique-se de ter o **Node.js** instalado na sua máquina. Você pode verificar executando `node -v` no seu terminal.
+Certifique-se de ter o [Node.js](https://nodejs.org/) instalado na sua máquina (versão 14 ou superior recomendada).
 
-**2. Preparação do ambiente:**
-1. Crie uma pasta para o projeto.
-2. Salve os dois blocos de código acima em seus respectivos arquivos (`package.json` e `index.js`) dentro dessa pasta.
+**2. Instalação de dependências:**
+Como o script utiliza apenas módulos nativos do Node.js, **não é necessário instalar nenhuma dependência externa** (não há necessidade de `npm install`).
 
-**3. Como rodar o script:**
-Abra o terminal, navegue até a pasta onde os arquivos foram salvos e execute o seguinte comando:
+**3. Como rodar:**
+Abra o terminal no diretório onde o arquivo `index.js` foi salvo e execute o comando passando o nome do usuário como argumento:
 
 ```bash
-node index.js
+node index.js João da Silva
 ```
-*(Alternativamente, se você salvou o `package.json`, pode rodar `npm start`)*
 
-**4. Testando o comportamento:**
-1. Ao rodar o comando, o terminal pedirá: `Digite o nome do usuario: `
-2. Digite um nome (ex: `João da Silva`) e aperte `Enter`.
-3. O script criará o arquivo `usuarios.csv` (se for a primeira vez) e adicionará o registro.
-4. Rode o comando `node index.js` novamente, digite outro nome (ex: `Maria Souza`) e aperte `Enter`.
-5. Abra o arquivo `usuarios.csv` gerado na mesma pasta. Você verá que ambas as linhas foram registradas corretamente, mantendo o histórico.
+Para adicionar outro usuário, basta rodar novamente:
+```bash
+node index.js Maria Oliveira
+```
+
+---
+
+### Arquivos do Projeto
+
+**`index.js`**
+```javascript
+// Importa o módulo nativo de File System (Sistema de Arquivos) do Node.js
+const fs = require('fs');
+const path = require('path');
+
+// Define o nome do arquivo CSV
+const FILE_NAME = path.join(__dirname, 'usuarios.csv');
+
+function registrarUsuario() {
+    // Captura os argumentos passados na linha de comando (ignorando 'node' e 'index.js')
+    const args = process.argv.slice(2);
+    
+    // Junta os argumentos para formar o nome completo
+    const nome = args.join(' ').trim();
+
+    // Valida se o nome foi fornecido
+    if (!nome) {
+        console.error('Erro: Nenhum nome fornecido.');
+        console.log('Uso correto: node index.js <Nome do Usuario>');
+        console.log('Exemplo: node index.js João da Silva');
+        process.exit(1);
+    }
+
+    // Gera a data atual no formato ISO 8601
+    const dataCadastro = new Date().toISOString();
+
+    // Formata a linha do CSV. 
+    // Aspas duplas são usadas para evitar quebras caso o nome contenha vírgulas.
+    const linhaCsv = `"${nome}","${dataCadastro}"\n`;
+
+    try {
+        // Verifica se o arquivo já existe
+        const arquivoExiste = fs.existsSync(FILE_NAME);
+
+        // Se o arquivo não existir, cria o arquivo e adiciona o cabeçalho
+        if (!arquivoExiste) {
+            const cabecalho = '"Nome","Data de Cadastro"\n';
+            fs.writeFileSync(FILE_NAME, cabecalho, 'utf8');
+            console.log('Arquivo CSV criado com cabeçalho.');
+        }
+
+        // Adiciona a nova linha ao final do arquivo (append) sem sobrescrever
+        fs.appendFileSync(FILE_NAME, linhaCsv, 'utf8');
+        
+        console.log(`Sucesso! Usuário "${nome}" registrado em ${FILE_NAME}.`);
+    } catch (erro) {
+        console.error('Ocorreu um erro ao tentar escrever no arquivo:', erro.message);
+        process.exit(1);
+    }
+}
+
+// Executa a função principal
+registrarUsuario();
+```

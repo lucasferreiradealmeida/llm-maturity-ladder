@@ -1,0 +1,217 @@
+
+=========================
+ GERENCIADOR DE USUÁRIOS
+=========================
+1. Cadastrar Usuário
+2. Listar Usuários
+3. Atualizar Usuário
+4. Remover Usuário
+5. Sair
+=========================
+Escolha uma opção: 1
+
+
+--- Cadastrar Novo Usuário ---
+Nome: Ana Teste
+
+E-mail: ana.teste@exemplo.com
+
+Data de Nascimento (YYYY-MM-DD): 1990-05-10
+
+✅ Usuário cadastrado com sucesso!
+
+=========================
+ GERENCIADOR DE USUÁRIOS
+=========================
+1. Cadastrar Usuário
+2. Listar Usuários
+3. Atualizar Usuário
+4. Remover Usuário
+5. Sair
+=========================
+Escolha uma opção: 2
+
+
+--- Lista de Usuários ---
+┌─────────┬────┬─────────────┬─────────────────────────┬──────────────┐
+│ (index) │ id │ name        │ email                   │ birthdate    │
+├─────────┼────┼─────────────┼─────────────────────────┼──────────────┤
+│ 0       │ 1  │ 'Ana Teste' │ 'ana.teste@exemplo.com' │ '1990-05-10' │
+└─────────┴────┴─────────────┴─────────────────────────┴──────────────┘
+
+=========================
+ GERENCIADOR DE USUÁRIOS
+=========================
+1. Cadastrar Usuário
+2. Listar Usuários
+3. Atualizar Usuário
+4. Remover Usuário
+5. Sair
+=========================
+Escolha uma opção: 1
+
+
+--- Cadastrar Novo Usuário ---
+Nome: Ana Repetida
+
+E-mail: ana.teste@exemplo.com
+
+Data de Nascimento (YYYY-MM-DD): 1991-01-01
+
+❌ Erro: Este e-mail já está cadastrado no sistema.
+
+=========================
+ GERENCIADOR DE USUÁRIOS
+=========================
+1. Cadastrar Usuário
+2. Listar Usuários
+3. Atualizar Usuário
+4. Remover Usuário
+5. Sair
+=========================
+Escolha uma opção: 1
+
+
+--- Cadastrar Novo Usuário ---
+Nome: Bruno Teste
+
+E-mail: email-invalido
+
+Erro: Formato de e-mail inválido.
+
+=========================
+ GERENCIADOR DE USUÁRIOS
+=========================
+1. Cadastrar Usuário
+2. Listar Usuários
+3. Atualizar Usuário
+4. Remover Usuário
+5. Sair
+=========================
+Escolha uma opção: 3
+
+
+--- Atualizar Usuário ---
+ID do usuário que deseja atualizar: abc
+
+Erro: ID inválido.
+
+=========================
+ GERENCIADOR DE USUÁRIOS
+=========================
+1. Cadastrar Usuário
+2. Listar Usuários
+3. Atualizar Usuário
+4. Remover Usuário
+5. Sair
+=========================
+Escolha uma opção: 3
+
+
+--- Atualizar Usuário ---
+ID do usuário que deseja atualizar: 1
+
+(Deixe em branco para manter o valor atual)
+Nome [Ana Teste]: Ana Atualizada
+
+E-mail [ana.teste@exemplo.com]: 
+
+Data de Nascimento [1990-05-10]: 
+
+✅ Usuário atualizado com sucesso!
+
+=========================
+ GERENCIADOR DE USUÁRIOS
+=========================
+1. Cadastrar Usuário
+2. Listar Usuários
+3. Atualizar Usuário
+4. Remover Usuário
+5. Sair
+=========================
+Escolha uma opção: 2
+
+
+--- Lista de Usuários ---
+┌─────────┬────┬──────────────────┬─────────────────────────┬──────────────┐
+│ (index) │ id │ name             │ email                   │ birthdate    │
+├─────────┼────┼──────────────────┼─────────────────────────┼──────────────┤
+│ 0       │ 1  │ 'Ana Atualizada' │ 'ana.teste@exemplo.com' │ '1990-05-10' │
+└─────────┴────┴──────────────────┴─────────────────────────┴──────────────┘
+
+=========================
+ GERENCIADOR DE USUÁRIOS
+=========================
+1. Cadastrar Usuário
+2. Listar Usuários
+3. Atualizar Usuário
+4. Remover Usuário
+5. Sair
+=========================
+Escolha uma opção: 5
+
+Encerrando o sistema...
+
+=========================
+ GERENCIADOR DE USUÁRIOS
+=========================
+1. Cadastrar Usuário
+2. Listar Usuários
+3. Atualizar Usuário
+4. Remover Usuário
+5. Sair
+=========================
+Escolha uma opção: 2
+
+
+--- Lista de Usuários ---
+┌─────────┬────┬──────────────────┬─────────────────────────┬──────────────┐
+│ (index) │ id │ name             │ email                   │ birthdate    │
+├─────────┼────┼──────────────────┼─────────────────────────┼──────────────┤
+│ 0       │ 1  │ 'Ana Atualizada' │ 'ana.teste@exemplo.com' │ '1990-05-10' │
+└─────────┴────┴──────────────────┴─────────────────────────┴──────────────┘
+
+=========================
+ GERENCIADOR DE USUÁRIOS
+=========================
+1. Cadastrar Usuário
+2. Listar Usuários
+3. Atualizar Usuário
+4. Remover Usuário
+5. Sair
+=========================
+Escolha uma opção: 4
+
+
+--- Remover Usuário ---
+ID do usuário que deseja remover: 1
+
+✅ Usuário removido com sucesso!
+
+=========================
+ GERENCIADOR DE USUÁRIOS
+=========================
+1. Cadastrar Usuário
+2. Listar Usuários
+3. Atualizar Usuário
+4. Remover Usuário
+5. Sair
+=========================
+Escolha uma opção: 2
+
+
+--- Lista de Usuários ---
+Nenhum usuário cadastrado.
+
+=========================
+ GERENCIADOR DE USUÁRIOS
+=========================
+1. Cadastrar Usuário
+2. Listar Usuários
+3. Atualizar Usuário
+4. Remover Usuário
+5. Sair
+=========================
+Escolha uma opção: 5
+
+Encerrando o sistema...
