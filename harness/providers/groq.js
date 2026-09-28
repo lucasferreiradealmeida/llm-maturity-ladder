@@ -37,6 +37,7 @@ export async function generate(prompt, { model }) {
       model: response.model,
       usage: response.usage,
       finish_reason: response.choices[0]?.finish_reason,
+      parametros: { max_tokens: 7500, reasoning_effort: "low", temperature: "padrao da API" },
     },
   };
 }

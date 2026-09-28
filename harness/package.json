@@ -2,17 +2,17 @@
   "name": "tcc-llm-harness",
   "version": "1.0.0",
   "type": "module",
-  "description": "Harness para coleta automatizada de codigo gerado por LLMs, organizado por nivel de complexidade progressiva (TCC)",
+  "description": "Harness para coleta automatizada de código gerado por LLMs, organizado por nível de complexidade progressiva (TCC)",
   "main": "run.js",
   "scripts": {
-    "start": "node run.js"
+    "start": "node run.js",
+    "testar-conexao": "node test-connection.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.117.1",
-    "@google/generative-ai": "^0.24.1",
     "dotenv": "^17.4.2",
     "openai": "^7.5.0"
   }

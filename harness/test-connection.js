@@ -3,10 +3,11 @@
 // Le as chaves do .env (que fica so na sua maquina, nunca e colado no chat).
 //
 // Uso:
-//   node test-connection.js            -> testa os 3 provedores
+//   node test-connection.js            -> testa os 4 provedores
 //   node test-connection.js gemini     -> testa so o Gemini
 //   node test-connection.js claude     -> testa so a Anthropic
 //   node test-connection.js gpt        -> testa so a OpenAI
+//   node test-connection.js groq       -> testa so a Groq
 
 import "dotenv/config";
 
@@ -30,27 +31,25 @@ function maskKey(key) {
 async function testGemini() {
   const key = process.env.GEMINI_API_KEY;
   const model = process.env.GEMINI_MODEL || "gemini-3.1-pro-preview";
+  const base = process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com/v1beta";
   console.log(`\n[gemini] chave carregada: ${maskKey(key)}`);
   console.log(`[gemini] modelo: ${model}`);
   if (!key) throw new Error("GEMINI_API_KEY nao definida no .env");
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
   const res = await withTimeout(
-    fetch(url, {
+    fetch(`${base}/models/${model}:generateContent`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: "diga oi" }] }],
-        generationConfig: { thinkingConfig: { thinkingBudget: 1024 } },
-      }),
+      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+      body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: "diga oi" }] }] }),
     }),
     TIMEOUT_MS,
     "gemini"
   );
   const data = await res.json();
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${JSON.stringify(data)}`);
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "(sem texto)";
-  console.log(`[gemini] OK -> resposta: "${text.trim()}"`);
+  const parts = data.candidates?.[0]?.content?.parts ?? [];
+  const text = parts.filter((p) => !p.thought).map((p) => p.text ?? "").join("") || "(sem texto)";
+  console.log(`[gemini] OK -> versão resolvida: ${data.modelVersion ?? "(não informada)"} | resposta: "${text.trim()}"`);
 }
 
 async function testClaude() {
